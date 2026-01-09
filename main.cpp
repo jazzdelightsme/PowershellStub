@@ -7,7 +7,7 @@
 
 inline wchar_t* SkipTillAfterQuote( wchar_t* str )
 {
-    while( *str && 
+    while( *str &&
            (*str != L'"') )
     {
         str++;
@@ -70,7 +70,8 @@ int main() // no C runtime, so no args here
 
     if( !bItWorked )
     {
-        return GetLastError();
+        ExitProcess( GetLastError() );
+        return -1; // unreachable
     }
 
     // Ignoring result...
@@ -84,8 +85,16 @@ int main() // no C runtime, so no args here
 
     if( !bItWorked )
     {
-        return GetLastError();
+        ExitProcess( GetLastError() );
+        return -1; // unreachable
     }
 
-    return dwRet;
+    // Note that we use ExitProcess to end execution instead of just "return dwRet",
+    // because returning from main leads to running RtlExitUserThread, and when running on
+    // an ARM64 machine, that was failing in a bizarre way (it appeared that the return
+    // code was not being propagated--one speculation was that it might be returning the
+    // thread's exit code instead of main's--and when running under a debugger to
+    // investigate, the debugger would get stuck and you couldn't break in).
+    ExitProcess( dwRet );
+    return -1; // unreachable
 }
