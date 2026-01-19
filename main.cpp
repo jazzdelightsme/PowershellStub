@@ -75,7 +75,9 @@ HANDLE g_hStdOut = 0;
 
 #define _countof(_Array) ((sizeof(_Array) / sizeof(_Array[0])))
 
-DWORD MyWcslen( const wchar_t* s )
+// TODO: does this really evaluate at compile-time, or do I need to switch to a recursive
+// method?
+constexpr DWORD MyWcslen( const wchar_t* s )
 {
     DWORD cch = 0;
     while( *s )
@@ -90,6 +92,24 @@ void Print( const wchar_t* s )
 {
     WriteConsoleW( g_hStdOut, s, MyWcslen( s ), nullptr, nullptr );
 } // end Print()
+
+int MyStrCmpI( const wchar_t* s1, const wchar_t* s2 )
+{
+    int ret = CompareStringOrdinal(s1, -1, s2, -1, TRUE);
+
+    if( !ret )
+    {
+        DWORD dwErr = GetLastError();
+        Print( L"Something went wrong.");
+        ExitProcess(dwErr);
+        return 0; // unreachable
+    }
+
+    // From CompareStringOrdinal documentation: "the value 2 can be subtracted
+    // from a nonzero return value. Then, the meaning of <0, ==0, and >0 is
+    // consistent with the C runtime."
+    return ret - 2;
+}
 
 int main() // no C runtime, so no args here
 {
@@ -122,6 +142,10 @@ int main() // no C runtime, so no args here
                                    L"} ; "
                                    L"Invoke-Expression \\\". { $theScript } -I  @outerArgs -EA Stop\\\" ; "
                                L"} catch { ";
+
+    const wchar_t c_Silent[] = L"Silent";
+    const wchar_t c_SilentWithProgress[] = L"SilentWithProgress";
+    const wchar_t c_Interactive[] = L"Interactive";
 
     dst = CopyStr( dst, L"", pastEnd );
 
@@ -190,6 +214,34 @@ int main() // no C runtime, so no args here
     Print( L"Expected script hash: " );
     Print( expectedScriptHash );
     Print( L"\n" );
+
+    bool bIsSilent = 0 == MyStrCmpI( installMode, c_Silent );
+    bool bIsSilentWithProgress = 0 == MyStrCmpI( installMode, c_SilentWithProgress );
+    bool bIsInteractive = 0 == MyStrCmpI( installMode, c_Interactive );
+
+    if( !bIsSilent && !bIsSilentWithProgress && !bIsInteractive )
+    {
+        Print( L"Install mode must be one of Silent, SilentWithProgress, or Interactive. Not '" );
+        Print( installMode );
+        Print( L"'.\n" );
+        ExitProcess( -1 );
+        return -1;
+    }
+
+    if( bIsSilent )
+    {
+        Print( L"Silent mode.\n" );
+    }
+
+    if( bIsSilentWithProgress )
+    {
+        Print( L"SilentWithProgress mode.\n" );
+    }
+
+    if( bIsInteractive )
+    {
+        Print( L"Interactive mode.\n" );
+    }
 
     ExitProcess( 0 );
     return 0;
