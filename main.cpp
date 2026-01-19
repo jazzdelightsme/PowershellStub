@@ -97,23 +97,45 @@ int MyStrCmpI( const char8_t* s1, const char8_t* s2 )
     return lstrcmpiA( (const char*) s1, (const char*) s2 );
 }
 
+bool _HandleUsageRequest( const char8_t* installMode )
+{
+    const char8_t c_Help1[] = u8"help";
+    const char8_t c_Help2[] = u8"/?";
+    const char8_t c_Help3[] = u8"-?";
+
+    if( (0 == MyStrCmpI( installMode, c_Help1 )) ||
+        (0 == MyStrCmpI( installMode, c_Help2 )) ||
+        (0 == MyStrCmpI( installMode, c_Help3 )) )
+    {
+        Print( u8"\nUsage: PowershellStub.exe [WhatIf] <InstallMode> <ScriptURL> <ExpectedScriptHash> [<OptionalArgs>]\n"
+               u8"\n"
+               u8"This program is intended to be used as an \"installer\" EXE for winget, where the actual\n"
+               u8"install logic is implemented in a downloadable PowerShell script. It launches powershell.exe\n"
+               u8"with a command line that downloads the script, verifies its hash, verifies its signature\n"
+               u8"(if any) and then runs it.\n"
+               u8"\n"
+               u8"  WhatIf: (optional) if specified, just prints the command line that would be used.\n"
+               u8"\n"
+               u8"  InstallMode: one of Interactive, Silent, or SilentWithProgress.\n"
+               u8"\n"
+               u8"  ScriptURL: URL from which to download the PowerShell script to run.\n"
+               u8"\n"
+               u8"  ExpectedScriptHash: SHA256 hash of the script, in hex.\n"
+               u8"\n"
+               u8"  OptionalArgs: optional arguments to pass along to the script.\n\n"
+             );
+        return true;
+    }
+    return false;
+} // end _HandleUsageRequest()
+
 int main() // no C runtime, so no args here
 {
     SetConsoleCP(CP_UTF8);
     SetConsoleOutputCP(CP_UTF8);
     g_hStdOut = GetStdHandle( STD_OUTPUT_HANDLE );
- // Print( "Well hello there.\n" );
 
     char8_t* commandLineArgs = FindTheRestOfTheCommandLine();
-
-    // Expected arguments:
-    //
-    //  1. InstallMode: one of Interactive, Silent, or SilentWithProgress.
-    //  2. Script URL.
-    //  3. Expected script hash.
-    //
-    // Additional arguments are optional and will be passed along to the script.
-    //
 
     char8_t* cursor = commandLineArgs;
 
@@ -135,11 +157,39 @@ int main() // no C runtime, so no args here
 
     char8_t* installMode = cursor;
 
+    if( _HandleUsageRequest( installMode ) )
+    {
+        ExitProcess( (UINT) -2 );
+    }
+
+    bool whatIf = false;
+
     cursor = SkipUntilWhitespace( cursor );
 
     EXPECT_MORE_CMDLINE
 
     *cursor++ = '\0';
+
+    if( 0 == MyStrCmpI( installMode, u8"WhatIf" ) )
+    {
+        whatIf = true;
+
+        cursor = SkipUntilNotWhitespace( cursor );
+
+        EXPECT_MORE_CMDLINE
+
+        installMode = cursor;
+
+        cursor = SkipUntilWhitespace( cursor );
+
+        EXPECT_MORE_CMDLINE
+
+        *cursor++ = '\0';
+        cursor = SkipUntilNotWhitespace( cursor );
+
+        EXPECT_MORE_CMDLINE
+    }
+
     cursor = SkipUntilNotWhitespace( cursor );
 
     char8_t* scriptUrl = cursor;
@@ -164,18 +214,6 @@ int main() // no C runtime, so no args here
 
     char8_t* optionalArgs = cursor;
 
-//  Print( u8"Install mode: " );
-//  Print( installMode );
-//  Print( u8"\n" );
-
-//  Print( u8"Script URL: " );
-//  Print( scriptUrl );
-//  Print( u8"\n" );
-
-//  Print( u8"Expected script hash: " );
-//  Print( expectedScriptHash );
-//  Print( u8"\n" );
-
     const char8_t c_Silent[] = u8"Silent";
     const char8_t c_SilentWithProgress[] = u8"SilentWithProgress";
     const char8_t c_Interactive[] = u8"Interactive";
@@ -189,30 +227,15 @@ int main() // no C runtime, so no args here
         Print( u8"Install mode must be one of Silent, SilentWithProgress, or Interactive. Not '" );
         Print( installMode );
         Print( u8"'.\n" );
-        ExitProcess( (UINT) - 1);
-        //return -1;
+        ExitProcess( (UINT) -3 );
     }
-
-//  if( bIsSilent )
-//  {
-//      Print( u8"Silent mode.\n" );
-//  }
-
-//  if( bIsSilentWithProgress )
-//  {
-//      Print( u8"SilentWithProgress mode.\n" );
-//  }
-
-//  if( bIsInteractive )
-//  {
-//      Print( u8"Interactive mode.\n" );
-//  }
 
     char8_t newCmdLine[ 4096 ];
     char8_t* dst = newCmdLine;
     const char8_t* pastEnd = &newCmdLine[ _countof( newCmdLine ) ];
 
     const char8_t cmdFrag0[] = u8" -NoProfile -ExecutionPolicy RemoteSigned -Command $env:PSModulePath = $null ; "
+                               u8"Set-StrictMode -Version Latest ; "
                                u8"try { "
                                    u8"$theScript = (iwr ";
 
@@ -238,9 +261,9 @@ int main() // no C runtime, so no args here
 
     const char8_t cmdFrag4_Interactive[] =
                                    u8"Write-Host $_ -Fore Red ; "
-                                   u8"$rsp = Read-Host 'pausing... [enter] to finish' ; "
+                                   u8"$rsp = Read-Host 'pausing... press [enter] to finish' ; "
                                    u8"if( $rsp -eq 'd' ) { $host.EnterNestedPrompt() } ; "
-                                   u8"throw"
+                                   u8"throw "
                                u8"}";
 
     const char8_t cmdFrag4_Silent[] =
@@ -268,13 +291,23 @@ int main() // no C runtime, so no args here
         dst = CopyStr( dst, cmdFrag4_Silent, pastEnd );
     }
 
- // Print( u8"\nCommandline: " );
- // Print( newCmdLine );
- // Print( u8"\n\n" );
+    if( whatIf )
+    {
+        Print( u8"\nWould run powershell.exe with command line:\n\n   " );
+        Print( newCmdLine );
+        Print( u8"\n\n" );
+        ExitProcess( (UINT) -4 );
+    }
+
+    if( dst == (pastEnd - 1) )
+    {
+        Print( u8"Command line too long. Use WhatIf to see it.\n" );
+        ExitProcess( (UINT) -5 );
+    }
 
     PROCESS_INFORMATION pi = { };
     STARTUPINFOA si;
-    SecureZeroMemory( &si, sizeof( si ) ); // compiler complained about no memset; whatevs
+    SecureZeroMemory( &si, sizeof( si ) );
     si.cb = (DWORD) sizeof( si );
 
     const char* szPowershellExe = "C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\powershell.exe";
