@@ -113,7 +113,7 @@ int MyStrCmpI( const wchar_t* s1, const wchar_t* s2 )
 int main() // no C runtime, so no args here
 {
     g_hStdOut = GetStdHandle( STD_OUTPUT_HANDLE );
-    Print( L"Well hello there.\n" );
+ // Print( L"Well hello there.\n" );
 
     wchar_t* commandLineArgs = FindTheRestOfTheCommandLine();
 
@@ -123,7 +123,7 @@ int main() // no C runtime, so no args here
     //  2. Script URL.
     //  3. Expected script hash.
     //
-    // TODO: extra args
+    // Additional arguments are optional and will be passed along to the script.
     //
 
     wchar_t* cursor = commandLineArgs;
@@ -164,21 +164,28 @@ int main() // no C runtime, so no args here
 
     wchar_t* expectedScriptHash = cursor;
 
-    // TODO: optional/extra args
+    // *Optional* arguments.
+    cursor = SkipUntilWhitespace( cursor );
 
+    if( *cursor )
+    {
+        *cursor++ = L'\0';
+        cursor = SkipUntilNotWhitespace( cursor );
+    }
 
+    wchar_t* optionalArgs = cursor;
 
-    Print( L"Install mode: " );
-    Print( installMode );
-    Print( L"\n" );
+//  Print( L"Install mode: " );
+//  Print( installMode );
+//  Print( L"\n" );
 
-    Print( L"Script URL: " );
-    Print( scriptUrl );
-    Print( L"\n" );
+//  Print( L"Script URL: " );
+//  Print( scriptUrl );
+//  Print( L"\n" );
 
-    Print( L"Expected script hash: " );
-    Print( expectedScriptHash );
-    Print( L"\n" );
+//  Print( L"Expected script hash: " );
+//  Print( expectedScriptHash );
+//  Print( L"\n" );
 
     const wchar_t c_Silent[] = L"Silent";
     const wchar_t c_SilentWithProgress[] = L"SilentWithProgress";
@@ -197,28 +204,27 @@ int main() // no C runtime, so no args here
         //return -1;
     }
 
-    if( bIsSilent )
-    {
-        Print( L"Silent mode.\n" );
-    }
+//  if( bIsSilent )
+//  {
+//      Print( L"Silent mode.\n" );
+//  }
 
-    if( bIsSilentWithProgress )
-    {
-        Print( L"SilentWithProgress mode.\n" );
-    }
+//  if( bIsSilentWithProgress )
+//  {
+//      Print( L"SilentWithProgress mode.\n" );
+//  }
 
-    if( bIsInteractive )
-    {
-        Print( L"Interactive mode.\n" );
-    }
+//  if( bIsInteractive )
+//  {
+//      Print( L"Interactive mode.\n" );
+//  }
 
     wchar_t newCmdLine[ 4096 ];
     wchar_t* dst = newCmdLine;
     const wchar_t* pastEnd = &newCmdLine[ _countof( newCmdLine ) ];
 
-    const wchar_t cmdFrag0[] = L"-NoProfile -ExecutionPolicy RemoteSigned -Command $env:PSModulePath = $null ; "
+    const wchar_t cmdFrag0[] = L" -NoProfile -ExecutionPolicy RemoteSigned -Command $env:PSModulePath = $null ; "
                                L"try { "
-                                   L"$outerArgs = $args ; "
                                    L"$theScript = (iwr ";
 
     const wchar_t cmdFrag1[] =     L"$env:_POWERSHELL_STUB_TEST_URL_SUFFIX -UseBasic -EA Stop).Content ; "
@@ -229,76 +235,96 @@ int main() // no C runtime, so no args here
     const wchar_t cmdFrag2[] =     L"' ; "
                                    L"if( $hash -ne $expectedHash ) "
                                    L"{ "
-                                       L"throw \"Hash mismatch: expected $expectedHash but got $hash\" "
+                                       L"throw \\\"Hash mismatch: expected $expectedHash but got $hash\\\" "
                                    L"} ; "
                                    L"$sig = Get-AuthenticodeSignature -Source 'theScript.ps1' -Content $bytes ; "
                                    L"if( ($sig.Status -ne 'Valid') -and ($sig.Status -ne 'NotSigned') ) "
                                    L"{ "
-                                       L"throw \"Signature error: $($sig.Status)\" "
+                                       L"throw \\\"Signature error: $($sig.Status)\\\" "
                                    L"} ; "
-                                   L"Invoke-Expression \\\". { $theScript } -I  @outerArgs -EA Stop\\\" ; "
+                                   L"Invoke-Expression \\\". { $theScript } -";
+
+    const wchar_t cmdFrag3[] =     L" -EA Stop\\\" ; "
                                L"} catch { ";
 
+    const wchar_t cmdFrag4_Interactive[] =
+                                   L"Write-Host $_ -Fore Red ; "
+                                   L"$rsp = Read-Host 'pausing... [enter] to finish' ; "
+                                   L"if( $rsp -eq 'd' ) { $host.EnterNestedPrompt() } ; "
+                                   L"throw"
+                               L"}";
+
+    const wchar_t cmdFrag4_Silent[] =
+                                   L"Write-Host $_ -Fore Red ; "
+                                   L"Start-Sleep -Seconds 5 ; " // Give people a chance to at least see the error.
+                                   L"throw"
+                               L"}";
 
     dst = CopyStr( dst, cmdFrag0, pastEnd );
     dst = CopyStr( dst, scriptUrl, pastEnd );
     dst = CopyStr( dst, cmdFrag1, pastEnd );
     dst = CopyStr( dst, expectedScriptHash, pastEnd );
     dst = CopyStr( dst, cmdFrag2, pastEnd );
+    dst = CopyStr( dst, installMode, pastEnd );
+    dst = CopyStr( dst, L" ", pastEnd);
+    dst = CopyStr( dst, optionalArgs, pastEnd);
+    dst = CopyStr( dst, cmdFrag3, pastEnd );
 
-    Print( L"\n\nNew command: " );
-    Print( newCmdLine );
+    if( bIsInteractive )
+    {
+        dst = CopyStr( dst, cmdFrag4_Interactive, pastEnd );
+    }
+    else
+    {
+        dst = CopyStr( dst, cmdFrag4_Silent, pastEnd );
+    }
 
+ // Print( L"\nCommandline: " );
+ // Print( newCmdLine );
+ // Print( L"\n\n" );
 
+    PROCESS_INFORMATION pi = { };
+    STARTUPINFOW si;
+    SecureZeroMemory( &si, sizeof( si ) ); // compiler complained about no memset; whatevs
+    si.cb = (DWORD) sizeof( si );
 
-    ExitProcess( 0 );
- // return 0;
+    const wchar_t* wszPowershellExe = L"C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\powershell.exe";
 
- // PROCESS_INFORMATION pi = { };
- // STARTUPINFOW si;
- // SecureZeroMemory( &si, sizeof( si ) ); // compiler complained about no memset; whatevs
- // si.cb = (DWORD) sizeof( si );
+    BOOL bItWorked = CreateProcessW( wszPowershellExe,
+                                     newCmdLine,
+                                     nullptr,   // lpProcessAttributes
+                                     nullptr,   // lpThreadAttributes
+                                     TRUE,      // bInheritHandles
+                                     0,         // dwFlags
+                                     nullptr,   // lpEnvironment
+                                     nullptr,   // lpCurrentDirectory
+                                     &si,
+                                     &pi );
 
- // const wchar_t* wszPowershellExe = L"C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\powershell.exe";
+    if( !bItWorked )
+    {
+        ExitProcess( GetLastError() );
+    }
 
- // BOOL bItWorked = CreateProcessW( wszPowershellExe,
- //                                  commandLineArgs,
- //                                  nullptr,   // lpProcessAttributes
- //                                  nullptr,   // lpThreadAttributes
- //                                  TRUE,      // bInheritHandles
- //                                  0,         // dwFlags
- //                                  nullptr,   // lpEnvironment
- //                                  nullptr,   // lpCurrentDirectory
- //                                  &si,
- //                                  &pi );
+    // Ignoring result...
+    WaitForSingleObject( pi.hProcess, INFINITE );
 
- // if( !bItWorked )
- // {
- //     ExitProcess( GetLastError() );
- //     //return -1; // unreachable
- // }
+    DWORD dwRet = 0;
+    bItWorked = GetExitCodeProcess( pi.hProcess, &dwRet );
 
- // // Ignoring result...
- // WaitForSingleObject( pi.hProcess, INFINITE );
+    CloseHandle( pi.hProcess );
+    CloseHandle( pi.hThread );
 
- // DWORD dwRet = 0;
- // bItWorked = GetExitCodeProcess( pi.hProcess, &dwRet );
+    if( !bItWorked )
+    {
+        ExitProcess( GetLastError() );
+    }
 
- // CloseHandle( pi.hProcess );
- // CloseHandle( pi.hThread );
-
- // if( !bItWorked )
- // {
- //     ExitProcess( GetLastError() );
- //     //return -1; // unreachable
- // }
-
- // // Note that we use ExitProcess to end execution instead of just "return dwRet",
- // // because returning from main leads to running RtlExitUserThread, and when running on
- // // an ARM64 machine, that was failing in a bizarre way (it appeared that the return
- // // code was not being propagated--one speculation was that it might be returning the
- // // thread's exit code instead of main's--and when running under a debugger to
- // // investigate, the debugger would get stuck and you couldn't break in).
- // ExitProcess( dwRet );
-    //return -1; // unreachable
+    // Note that we use ExitProcess to end execution instead of just "return dwRet",
+    // because returning from main leads to running RtlExitUserThread, and when running on
+    // an ARM64 machine, that was failing in a bizarre way (it appeared that the return
+    // code was not being propagated--one speculation was that it might be returning the
+    // thread's exit code instead of main's--and when running under a debugger to
+    // investigate, the debugger would get stuck and you couldn't break in).
+    ExitProcess( dwRet );
 }
