@@ -43,7 +43,6 @@ inline wchar_t* SkipUntilNotWhitespace( wchar_t* str )
 // EXE.
 inline wchar_t* FindTheRestOfTheCommandLine()
 {
-    wchar_t* returnMe = NULL;
     wchar_t* str = GetCommandLine();
 
     if( str[ 0 ] == L'"' )
@@ -102,7 +101,7 @@ int MyStrCmpI( const wchar_t* s1, const wchar_t* s2 )
         DWORD dwErr = GetLastError();
         Print( L"Something went wrong.");
         ExitProcess(dwErr);
-        return 0; // unreachable
+        //return 0; // unreachable
     }
 
     // From CompareStringOrdinal documentation: "the value 2 can be subtracted
@@ -115,39 +114,6 @@ int main() // no C runtime, so no args here
 {
     g_hStdOut = GetStdHandle( STD_OUTPUT_HANDLE );
     Print( L"Well hello there.\n" );
-
-    wchar_t newCmdLine[ 16384 ];
-    wchar_t* dst = newCmdLine;
-    const wchar_t* pastEnd = &newCmdLine[ _countof( newCmdLine ) ];
-
-    const wchar_t cmdFrag0[] = L"-NoProfile -ExecutionPolicy RemoteSigned -Command $env:PSModulePath = $null ; "
-                               L"try { "
-                                   L"$outerArgs = $args ; "
-                                   L"$theScript = (iwr ";
-
-    const wchar_t cmdFrag1[] =     L"$env:_POWERSHELL_STUB_TEST_URL_SUFFIX -UseBasic -EA Stop).Content ; "
-                                   L"$bytes = [System.Text.Encoding]::Unicode.GetBytes( $theScript ) ; "
-                                   L"$hash = ([Security.Cryptography.SHA256]::Create().ComputeHash( $bytes ) | %{ $_.ToString('x2') }) -join '' ; "
-                                   L"$expectedHash = '";
-
-    const wchar_t cmdFrag2[] =     L"' ; "
-                                   L"if( $hash -ne $expectedHash ) "
-                                   L"{ "
-                                       L"throw \"Hash mismatch: expected $expectedHash but got $hash\" "
-                                   L"} ; "
-                                   L"$sig = Get-AuthenticodeSignature -Source 'theScript.ps1' -Content $bytes ; "
-                                   L"if( ($sig.Status -ne 'Valid') -and ($sig.Status -ne 'NotSigned') ) "
-                                   L"{ "
-                                       L"throw \"Signature error: $($sig.Status)\" "
-                                   L"} ; "
-                                   L"Invoke-Expression \\\". { $theScript } -I  @outerArgs -EA Stop\\\" ; "
-                               L"} catch { ";
-
-    const wchar_t c_Silent[] = L"Silent";
-    const wchar_t c_SilentWithProgress[] = L"SilentWithProgress";
-    const wchar_t c_Interactive[] = L"Interactive";
-
-    dst = CopyStr( dst, L"", pastEnd );
 
     wchar_t* commandLineArgs = FindTheRestOfTheCommandLine();
 
@@ -166,8 +132,7 @@ int main() // no C runtime, so no args here
     if( !*cursor ) \
     { \
         Print( L"Expected more on the command line." ); \
-        ExitProcess( -1 ); \
-        return -1; \
+        ExitProcess( (UINT) -1 ); \
     } \
 
     EXPECT_MORE_CMDLINE
@@ -215,6 +180,10 @@ int main() // no C runtime, so no args here
     Print( expectedScriptHash );
     Print( L"\n" );
 
+    const wchar_t c_Silent[] = L"Silent";
+    const wchar_t c_SilentWithProgress[] = L"SilentWithProgress";
+    const wchar_t c_Interactive[] = L"Interactive";
+
     bool bIsSilent = 0 == MyStrCmpI( installMode, c_Silent );
     bool bIsSilentWithProgress = 0 == MyStrCmpI( installMode, c_SilentWithProgress );
     bool bIsInteractive = 0 == MyStrCmpI( installMode, c_Interactive );
@@ -224,8 +193,8 @@ int main() // no C runtime, so no args here
         Print( L"Install mode must be one of Silent, SilentWithProgress, or Interactive. Not '" );
         Print( installMode );
         Print( L"'.\n" );
-        ExitProcess( -1 );
-        return -1;
+        ExitProcess( (UINT) - 1);
+        //return -1;
     }
 
     if( bIsSilent )
@@ -243,54 +212,93 @@ int main() // no C runtime, so no args here
         Print( L"Interactive mode.\n" );
     }
 
+    wchar_t newCmdLine[ 4096 ];
+    wchar_t* dst = newCmdLine;
+    const wchar_t* pastEnd = &newCmdLine[ _countof( newCmdLine ) ];
+
+    const wchar_t cmdFrag0[] = L"-NoProfile -ExecutionPolicy RemoteSigned -Command $env:PSModulePath = $null ; "
+                               L"try { "
+                                   L"$outerArgs = $args ; "
+                                   L"$theScript = (iwr ";
+
+    const wchar_t cmdFrag1[] =     L"$env:_POWERSHELL_STUB_TEST_URL_SUFFIX -UseBasic -EA Stop).Content ; "
+                                   L"$bytes = [System.Text.Encoding]::Unicode.GetBytes( $theScript ) ; "
+                                   L"$hash = ([Security.Cryptography.SHA256]::Create().ComputeHash( $bytes ) | %{ $_.ToString('x2') }) -join '' ; "
+                                   L"$expectedHash = '";
+
+    const wchar_t cmdFrag2[] =     L"' ; "
+                                   L"if( $hash -ne $expectedHash ) "
+                                   L"{ "
+                                       L"throw \"Hash mismatch: expected $expectedHash but got $hash\" "
+                                   L"} ; "
+                                   L"$sig = Get-AuthenticodeSignature -Source 'theScript.ps1' -Content $bytes ; "
+                                   L"if( ($sig.Status -ne 'Valid') -and ($sig.Status -ne 'NotSigned') ) "
+                                   L"{ "
+                                       L"throw \"Signature error: $($sig.Status)\" "
+                                   L"} ; "
+                                   L"Invoke-Expression \\\". { $theScript } -I  @outerArgs -EA Stop\\\" ; "
+                               L"} catch { ";
+
+
+    dst = CopyStr( dst, cmdFrag0, pastEnd );
+    dst = CopyStr( dst, scriptUrl, pastEnd );
+    dst = CopyStr( dst, cmdFrag1, pastEnd );
+    dst = CopyStr( dst, expectedScriptHash, pastEnd );
+    dst = CopyStr( dst, cmdFrag2, pastEnd );
+
+    Print( L"\n\nNew command: " );
+    Print( newCmdLine );
+
+
+
     ExitProcess( 0 );
-    return 0;
+ // return 0;
 
-    PROCESS_INFORMATION pi = { };
-    STARTUPINFOW si;
-    SecureZeroMemory( &si, sizeof( si ) ); // compiler complained about no memset; whatevs
-    si.cb = (DWORD) sizeof( si );
+ // PROCESS_INFORMATION pi = { };
+ // STARTUPINFOW si;
+ // SecureZeroMemory( &si, sizeof( si ) ); // compiler complained about no memset; whatevs
+ // si.cb = (DWORD) sizeof( si );
 
-    const wchar_t* wszPowershellExe = L"C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\powershell.exe";
+ // const wchar_t* wszPowershellExe = L"C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\powershell.exe";
 
-    BOOL bItWorked = CreateProcessW( wszPowershellExe,
-                                     commandLineArgs,
-                                     nullptr,   // lpProcessAttributes
-                                     nullptr,   // lpThreadAttributes
-                                     TRUE,      // bInheritHandles
-                                     0,         // dwFlags
-                                     nullptr,   // lpEnvironment
-                                     nullptr,   // lpCurrentDirectory
-                                     &si,
-                                     &pi );
+ // BOOL bItWorked = CreateProcessW( wszPowershellExe,
+ //                                  commandLineArgs,
+ //                                  nullptr,   // lpProcessAttributes
+ //                                  nullptr,   // lpThreadAttributes
+ //                                  TRUE,      // bInheritHandles
+ //                                  0,         // dwFlags
+ //                                  nullptr,   // lpEnvironment
+ //                                  nullptr,   // lpCurrentDirectory
+ //                                  &si,
+ //                                  &pi );
 
-    if( !bItWorked )
-    {
-        ExitProcess( GetLastError() );
-        return -1; // unreachable
-    }
+ // if( !bItWorked )
+ // {
+ //     ExitProcess( GetLastError() );
+ //     //return -1; // unreachable
+ // }
 
-    // Ignoring result...
-    WaitForSingleObject( pi.hProcess, INFINITE );
+ // // Ignoring result...
+ // WaitForSingleObject( pi.hProcess, INFINITE );
 
-    DWORD dwRet = 0;
-    bItWorked = GetExitCodeProcess( pi.hProcess, &dwRet );
+ // DWORD dwRet = 0;
+ // bItWorked = GetExitCodeProcess( pi.hProcess, &dwRet );
 
-    CloseHandle( pi.hProcess );
-    CloseHandle( pi.hThread );
+ // CloseHandle( pi.hProcess );
+ // CloseHandle( pi.hThread );
 
-    if( !bItWorked )
-    {
-        ExitProcess( GetLastError() );
-        return -1; // unreachable
-    }
+ // if( !bItWorked )
+ // {
+ //     ExitProcess( GetLastError() );
+ //     //return -1; // unreachable
+ // }
 
-    // Note that we use ExitProcess to end execution instead of just "return dwRet",
-    // because returning from main leads to running RtlExitUserThread, and when running on
-    // an ARM64 machine, that was failing in a bizarre way (it appeared that the return
-    // code was not being propagated--one speculation was that it might be returning the
-    // thread's exit code instead of main's--and when running under a debugger to
-    // investigate, the debugger would get stuck and you couldn't break in).
-    ExitProcess( dwRet );
-    return -1; // unreachable
+ // // Note that we use ExitProcess to end execution instead of just "return dwRet",
+ // // because returning from main leads to running RtlExitUserThread, and when running on
+ // // an ARM64 machine, that was failing in a bizarre way (it appeared that the return
+ // // code was not being propagated--one speculation was that it might be returning the
+ // // thread's exit code instead of main's--and when running under a debugger to
+ // // investigate, the debugger would get stuck and you couldn't break in).
+ // ExitProcess( dwRet );
+    //return -1; // unreachable
 }
