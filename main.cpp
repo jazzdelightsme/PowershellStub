@@ -5,10 +5,10 @@
 
 #include <Windows.h>
 
-inline wchar_t* SkipTillAfterQuote( wchar_t* str )
+inline char8_t* SkipTillAfterQuote( char8_t* str )
 {
     while( *str &&
-           (*str != L'"') )
+           (*str != '"') )
     {
         str++;
     }
@@ -16,7 +16,7 @@ inline wchar_t* SkipTillAfterQuote( wchar_t* str )
     return ++str;
 } // end SkipTillAfterQuote()
 
-inline wchar_t* SkipUntilWhitespace( wchar_t* str )
+inline char8_t* SkipUntilWhitespace( char8_t* str )
 {
     while( *str &&
            ((*str != ' ') && (*str != '\t')) )
@@ -27,7 +27,7 @@ inline wchar_t* SkipUntilWhitespace( wchar_t* str )
     return str;
 } // end SkipUntilWhitespace()
 
-inline wchar_t* SkipUntilNotWhitespace( wchar_t* str )
+inline char8_t* SkipUntilNotWhitespace( char8_t* str )
 {
     while( *str &&
            ((*str == ' ') || (*str == '\t')) )
@@ -41,11 +41,11 @@ inline wchar_t* SkipUntilNotWhitespace( wchar_t* str )
 
 // Returns a pointer to the part of the current process command line immediately after the
 // EXE.
-inline wchar_t* FindTheRestOfTheCommandLine()
+inline char8_t* FindTheRestOfTheCommandLine()
 {
-    wchar_t* str = GetCommandLine();
+    char8_t* str = (char8_t*) GetCommandLineA();
 
-    if( str[ 0 ] == L'"' )
+    if( str[ 0 ] == '"' )
     {
         str = SkipTillAfterQuote( &str[ 1 ] );
     }
@@ -57,7 +57,7 @@ inline wchar_t* FindTheRestOfTheCommandLine()
     return str;
 } // end FindTheRestOfTheCommandLine()
 
-inline wchar_t* CopyStr( wchar_t* dest, const wchar_t* src, const wchar_t* pastDestEnd )
+inline char8_t* CopyStr( char8_t* dest, const char8_t* src, const char8_t* pastDestEnd )
 {
     // The -1 is to leave room for the terminating null.
     while( (dest < (pastDestEnd - 1)) && *src )
@@ -76,7 +76,7 @@ HANDLE g_hStdOut = 0;
 
 // TODO: does this really evaluate at compile-time, or do I need to switch to a recursive
 // method?
-constexpr DWORD MyWcslen( const wchar_t* s )
+constexpr DWORD MyWcslen( const char8_t* s )
 {
     DWORD cch = 0;
     while( *s )
@@ -87,35 +87,24 @@ constexpr DWORD MyWcslen( const wchar_t* s )
     return cch;
 }
 
-void Print( const wchar_t* s )
+void Print( const char8_t* s )
 {
-    WriteConsoleW( g_hStdOut, s, MyWcslen( s ), nullptr, nullptr );
+    WriteConsoleA( g_hStdOut, s, MyWcslen( s ), nullptr, nullptr );
 } // end Print()
 
-int MyStrCmpI( const wchar_t* s1, const wchar_t* s2 )
+int MyStrCmpI( const char8_t* s1, const char8_t* s2 )
 {
-    int ret = CompareStringOrdinal(s1, -1, s2, -1, TRUE);
-
-    if( !ret )
-    {
-        DWORD dwErr = GetLastError();
-        Print( L"Something went wrong.");
-        ExitProcess(dwErr);
-        //return 0; // unreachable
-    }
-
-    // From CompareStringOrdinal documentation: "the value 2 can be subtracted
-    // from a nonzero return value. Then, the meaning of <0, ==0, and >0 is
-    // consistent with the C runtime."
-    return ret - 2;
+    return lstrcmpiA( (const char*) s1, (const char*) s2 );
 }
 
 int main() // no C runtime, so no args here
 {
+    SetConsoleCP(CP_UTF8);
+    SetConsoleOutputCP(CP_UTF8);
     g_hStdOut = GetStdHandle( STD_OUTPUT_HANDLE );
- // Print( L"Well hello there.\n" );
+ // Print( "Well hello there.\n" );
 
-    wchar_t* commandLineArgs = FindTheRestOfTheCommandLine();
+    char8_t* commandLineArgs = FindTheRestOfTheCommandLine();
 
     // Expected arguments:
     //
@@ -126,12 +115,12 @@ int main() // no C runtime, so no args here
     // Additional arguments are optional and will be passed along to the script.
     //
 
-    wchar_t* cursor = commandLineArgs;
+    char8_t* cursor = commandLineArgs;
 
 #define EXPECT_MORE_CMDLINE \
     if( !*cursor ) \
     { \
-        Print( L"Expected more on the command line." ); \
+        Print( u8"Expected more on the command line." ); \
         ExitProcess( (UINT) -1 ); \
     } \
 
@@ -141,55 +130,55 @@ int main() // no C runtime, so no args here
 
     EXPECT_MORE_CMDLINE
 
-    *cursor++ = L'\0';
+    *cursor++ = '\0';
     cursor = SkipUntilNotWhitespace( cursor );
 
-    wchar_t* installMode = cursor;
+    char8_t* installMode = cursor;
 
     cursor = SkipUntilWhitespace( cursor );
 
     EXPECT_MORE_CMDLINE
 
-    *cursor++ = L'\0';
+    *cursor++ = '\0';
     cursor = SkipUntilNotWhitespace( cursor );
 
-    wchar_t* scriptUrl = cursor;
+    char8_t* scriptUrl = cursor;
 
     cursor = SkipUntilWhitespace( cursor );
 
     EXPECT_MORE_CMDLINE
 
-    *cursor++ = L'\0';
+    *cursor++ = '\0';
     cursor = SkipUntilNotWhitespace( cursor );
 
-    wchar_t* expectedScriptHash = cursor;
+    char8_t* expectedScriptHash = cursor;
 
     // *Optional* arguments.
     cursor = SkipUntilWhitespace( cursor );
 
     if( *cursor )
     {
-        *cursor++ = L'\0';
+        *cursor++ = '\0';
         cursor = SkipUntilNotWhitespace( cursor );
     }
 
-    wchar_t* optionalArgs = cursor;
+    char8_t* optionalArgs = cursor;
 
-//  Print( L"Install mode: " );
+//  Print( u8"Install mode: " );
 //  Print( installMode );
-//  Print( L"\n" );
+//  Print( u8"\n" );
 
-//  Print( L"Script URL: " );
+//  Print( u8"Script URL: " );
 //  Print( scriptUrl );
-//  Print( L"\n" );
+//  Print( u8"\n" );
 
-//  Print( L"Expected script hash: " );
+//  Print( u8"Expected script hash: " );
 //  Print( expectedScriptHash );
-//  Print( L"\n" );
+//  Print( u8"\n" );
 
-    const wchar_t c_Silent[] = L"Silent";
-    const wchar_t c_SilentWithProgress[] = L"SilentWithProgress";
-    const wchar_t c_Interactive[] = L"Interactive";
+    const char8_t c_Silent[] = u8"Silent";
+    const char8_t c_SilentWithProgress[] = u8"SilentWithProgress";
+    const char8_t c_Interactive[] = u8"Interactive";
 
     bool bIsSilent = 0 == MyStrCmpI( installMode, c_Silent );
     bool bIsSilentWithProgress = 0 == MyStrCmpI( installMode, c_SilentWithProgress );
@@ -197,68 +186,68 @@ int main() // no C runtime, so no args here
 
     if( !bIsSilent && !bIsSilentWithProgress && !bIsInteractive )
     {
-        Print( L"Install mode must be one of Silent, SilentWithProgress, or Interactive. Not '" );
+        Print( u8"Install mode must be one of Silent, SilentWithProgress, or Interactive. Not '" );
         Print( installMode );
-        Print( L"'.\n" );
+        Print( u8"'.\n" );
         ExitProcess( (UINT) - 1);
         //return -1;
     }
 
 //  if( bIsSilent )
 //  {
-//      Print( L"Silent mode.\n" );
+//      Print( u8"Silent mode.\n" );
 //  }
 
 //  if( bIsSilentWithProgress )
 //  {
-//      Print( L"SilentWithProgress mode.\n" );
+//      Print( u8"SilentWithProgress mode.\n" );
 //  }
 
 //  if( bIsInteractive )
 //  {
-//      Print( L"Interactive mode.\n" );
+//      Print( u8"Interactive mode.\n" );
 //  }
 
-    wchar_t newCmdLine[ 4096 ];
-    wchar_t* dst = newCmdLine;
-    const wchar_t* pastEnd = &newCmdLine[ _countof( newCmdLine ) ];
+    char8_t newCmdLine[ 4096 ];
+    char8_t* dst = newCmdLine;
+    const char8_t* pastEnd = &newCmdLine[ _countof( newCmdLine ) ];
 
-    const wchar_t cmdFrag0[] = L" -NoProfile -ExecutionPolicy RemoteSigned -Command $env:PSModulePath = $null ; "
-                               L"try { "
-                                   L"$theScript = (iwr ";
+    const char8_t cmdFrag0[] = u8" -NoProfile -ExecutionPolicy RemoteSigned -Command $env:PSModulePath = $null ; "
+                               u8"try { "
+                                   u8"$theScript = (iwr ";
 
-    const wchar_t cmdFrag1[] =     L"$env:_POWERSHELL_STUB_TEST_URL_SUFFIX -UseBasic -EA Stop).Content ; "
-                                   L"$bytes = [System.Text.Encoding]::Unicode.GetBytes( $theScript ) ; "
-                                   L"$hash = ([Security.Cryptography.SHA256]::Create().ComputeHash( $bytes ) | %{ $_.ToString('x2') }) -join '' ; "
-                                   L"$expectedHash = '";
+    const char8_t cmdFrag1[] =     u8"$env:_POWERSHELL_STUB_TEST_URL_SUFFIX -UseBasic -EA Stop).Content ; "
+                                   u8"$bytes = [System.Text.Encoding]::Unicode.GetBytes( $theScript ) ; "
+                                   u8"$hash = ([Security.Cryptography.SHA256]::Create().ComputeHash( $bytes ) | %{ $_.ToString('x2') }) -join '' ; "
+                                   u8"$expectedHash = '";
 
-    const wchar_t cmdFrag2[] =     L"' ; "
-                                   L"if( $hash -ne $expectedHash ) "
-                                   L"{ "
-                                       L"throw \\\"Hash mismatch: expected $expectedHash but got $hash\\\" "
-                                   L"} ; "
-                                   L"$sig = Get-AuthenticodeSignature -Source 'theScript.ps1' -Content $bytes ; "
-                                   L"if( ($sig.Status -ne 'Valid') -and ($sig.Status -ne 'NotSigned') ) "
-                                   L"{ "
-                                       L"throw \\\"Signature error: $($sig.Status)\\\" "
-                                   L"} ; "
-                                   L"Invoke-Expression \\\". { $theScript } -";
+    const char8_t cmdFrag2[] =     u8"' ; "
+                                   u8"if( $hash -ne $expectedHash ) "
+                                   u8"{ "
+                                       u8"throw \\\"Hash mismatch: expected $expectedHash but got $hash\\\" "
+                                   u8"} ; "
+                                   u8"$sig = Get-AuthenticodeSignature -Source 'theScript.ps1' -Content $bytes ; "
+                                   u8"if( ($sig.Status -ne 'Valid') -and ($sig.Status -ne 'NotSigned') ) "
+                                   u8"{ "
+                                       u8"throw \\\"Signature error: $($sig.Status)\\\" "
+                                   u8"} ; "
+                                   u8"Invoke-Expression \\\". { $theScript } -";
 
-    const wchar_t cmdFrag3[] =     L" -EA Stop\\\" ; "
-                               L"} catch { ";
+    const char8_t cmdFrag3[] =     u8" -EA Stop\\\" ; "
+                               u8"} catch { ";
 
-    const wchar_t cmdFrag4_Interactive[] =
-                                   L"Write-Host $_ -Fore Red ; "
-                                   L"$rsp = Read-Host 'pausing... [enter] to finish' ; "
-                                   L"if( $rsp -eq 'd' ) { $host.EnterNestedPrompt() } ; "
-                                   L"throw"
-                               L"}";
+    const char8_t cmdFrag4_Interactive[] =
+                                   u8"Write-Host $_ -Fore Red ; "
+                                   u8"$rsp = Read-Host 'pausing... [enter] to finish' ; "
+                                   u8"if( $rsp -eq 'd' ) { $host.EnterNestedPrompt() } ; "
+                                   u8"throw"
+                               u8"}";
 
-    const wchar_t cmdFrag4_Silent[] =
-                                   L"Write-Host $_ -Fore Red ; "
-                                   L"Start-Sleep -Seconds 5 ; " // Give people a chance to at least see the error.
-                                   L"throw"
-                               L"}";
+    const char8_t cmdFrag4_Silent[] =
+                                   u8"Write-Host $_ -Fore Red ; "
+                                   u8"Start-Sleep -Seconds 5 ; " // Give people a chance to at least see the error.
+                                   u8"throw"
+                               u8"}";
 
     dst = CopyStr( dst, cmdFrag0, pastEnd );
     dst = CopyStr( dst, scriptUrl, pastEnd );
@@ -266,7 +255,7 @@ int main() // no C runtime, so no args here
     dst = CopyStr( dst, expectedScriptHash, pastEnd );
     dst = CopyStr( dst, cmdFrag2, pastEnd );
     dst = CopyStr( dst, installMode, pastEnd );
-    dst = CopyStr( dst, L" ", pastEnd);
+    dst = CopyStr( dst, u8" ", pastEnd);
     dst = CopyStr( dst, optionalArgs, pastEnd);
     dst = CopyStr( dst, cmdFrag3, pastEnd );
 
@@ -279,19 +268,19 @@ int main() // no C runtime, so no args here
         dst = CopyStr( dst, cmdFrag4_Silent, pastEnd );
     }
 
- // Print( L"\nCommandline: " );
+ // Print( u8"\nCommandline: " );
  // Print( newCmdLine );
- // Print( L"\n\n" );
+ // Print( u8"\n\n" );
 
     PROCESS_INFORMATION pi = { };
-    STARTUPINFOW si;
+    STARTUPINFOA si;
     SecureZeroMemory( &si, sizeof( si ) ); // compiler complained about no memset; whatevs
     si.cb = (DWORD) sizeof( si );
 
-    const wchar_t* wszPowershellExe = L"C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\powershell.exe";
+    const char* szPowershellExe = "C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\powershell.exe";
 
-    BOOL bItWorked = CreateProcessW( wszPowershellExe,
-                                     newCmdLine,
+    BOOL bItWorked = CreateProcessA( szPowershellExe,
+                                     (char*) newCmdLine,
                                      nullptr,   // lpProcessAttributes
                                      nullptr,   // lpThreadAttributes
                                      TRUE,      // bInheritHandles
