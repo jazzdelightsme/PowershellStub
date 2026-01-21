@@ -160,7 +160,7 @@
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <SetChecksum>true</SetChecksum>
       <MergeSections>.pdata=.text</MergeSections>
-      <SectionAlignment>128</SectionAlignment>
+      <SectionAlignment>64</SectionAlignment>
       <StackReserveSize>32768</StackReserveSize>
       <HeapReserveSize>32768</HeapReserveSize>
       <StackCommitSize>32768</StackCommitSize>

@@ -128,6 +128,8 @@ bool _HandleUsageRequest( const char8_t* installMode )
                u8"The value of the environment variable $env:_POWERSHELL_STUB_TEST_URL_SUFFIX is appended to the ScriptUrl.\n"
                u8"This is handy for testing a new version of the install script without having to update the winget package.\n"
                u8"\n"
+               u8"The install script is executed directly from memory; not saved to a temporary file.\n"
+               u8"\n"
                u8"The winget install mode is passed as a switch parameter to the script (e.g. -Silent), followed by the optional\n"
                u8"parameters, followed by -EA Stop (all errors are treated as terminating errors).\n"
                u8"\n"
@@ -188,6 +190,9 @@ void PrettyPrint( char8_t* s )
             s++;
         }
     };
+
+    printIndent();
+    Print( u8"powershell.exe" );
 
     while( *s )
     {
@@ -425,7 +430,7 @@ int main() // no C runtime, so no args here
     if( whatIf )
     {
         Print( u8"\nWould run powershell.exe with a command line to run the following code:\n" );
-        Print( u8"(use 'WhatIfRaw' instead to see the unmodified command line arguments)\n\n   " );
+        Print( u8"(use 'WhatIfRaw' instead to see the unmodified command line arguments)\n\n" );
         PrettyPrint( newCmdLine );
         Print( u8"\n\n" );
         ExitProcess( (UINT) -4 );
