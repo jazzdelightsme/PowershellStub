@@ -371,7 +371,7 @@ int main() // no C runtime, so no args here
     // The utility of the environment variable here is to allow you to test a new version
     // of your install script, without needing to touch your winget manifest.
     const char8_t cmdFrag1[] =     u8"$env:_POWERSHELL_STUB_TEST_URL_SUFFIX -UseBasic -EA Stop).Content ; "
-                                   u8"$bytes = [System.Text.Encoding]::Unicode.GetBytes( $theScript ) ; "
+                                   u8"$bytes = [System.Text.Encoding]::UTF8.GetBytes( $theScript ) ; "
                                    u8"$hash = ([Security.Cryptography.SHA256]::Create().ComputeHash( $bytes ) | %{$_.ToString('x2')}) -join '' ; "
                                    u8"$expectedHash = '";
 
