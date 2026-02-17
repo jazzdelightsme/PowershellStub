@@ -138,7 +138,7 @@ bool _HandleUsageRequest( const char8_t* installMode )
                u8"If an error occurs in Interactive mode, the wrapper script pauses so you can read the error. If you enter 'd'\n"
                u8"at the prompt, you'll enter a nested shell so you can poke around more (run 'exit' to quit the nested shell).\n"
                u8"\n"
-               u8"PowerShellStub.exe returns the return code of the powershell.exe process. The exit code for an uncaught\n"
+               u8"PowershellStub.exe returns the return code of the powershell.exe process. The exit code for an uncaught\n"
                u8"exception is 1.\n"
                u8"\n"
              );

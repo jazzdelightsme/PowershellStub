@@ -20,7 +20,7 @@ In general, the policy for `winget` packages is to avoid executing dynamic
 content, hence "script installers" are not natively supported. Although this
 EXE allows implementing an installer in script, it aims to follow the spirit of
 that policy: just like `winget` verifies hashes of EXEs, using
-`PowerShellStub.exe` will verify the hash of your installl script (as well as a
+`PowershellStub.exe` will verify the hash of your install script (as well as a
 signature, if it exists), only executing the script if its hash matches what
 was specified on the command line (in your `winget` package manifest).
 
@@ -32,7 +32,7 @@ for example usage).
 
 Command line syntax:
 
-`PowershellStub.exe [WhatIf|WhatIfRaw] <InstallMode> <ScriptURL> <ExpectedScriptHash> [<OptionalArgs>`
+`PowershellStub.exe [WhatIf|WhatIfRaw] <InstallMode> <ScriptURL> <ExpectedScriptHash> [<OptionalArgs>]`
 
 | Option | Description |
 |-------:|:------------|
@@ -42,9 +42,9 @@ Command line syntax:
 | *&lt;ExpectedScriptHash&gt;* | Expected SHA256 hash of the install script (encoded as UTF8), in hex. If the downloaded script does not match this hash, it will not be run. |
 | *&lt;OptionalArgs&gt;* | **optional** additional arguments to pass along to the script. |
 
-`PowerShellStub.exe` is *extremely* simple--it only parses its arguments, then delegates all the "real work" (such as downloading the install script and verifying its hash) to `powershell.exe`, via a small "wrapper script" that is provided directly on the command line. You can use the `WhatIf` option to see what would be run.
+`PowershellStub.exe` is *extremely* simple--it only parses its arguments, then delegates all the "real work" (such as downloading the install script and verifying its hash) to `powershell.exe`, via a small "wrapper script" that is provided directly on the command line. You can use the `WhatIf` option to see what would be run.
 
-For example, this `PowerShellStub.exe` command line:
+For example, this `PowershellStub.exe` command line:
 
 `PowershellStub.exe WhatIf Interactive https://example.com/install-the-thing 37b91cb6eebc34c965ac3bbfc59a9ca64738054b7d31131e59698a86e38613d3 -MyCustomArg Something -Blah 'Whatever'`
 
@@ -94,7 +94,7 @@ Notable details:
  * The winget install mode is passed as a switch parameter to the script (e.g. `-Interactive`), followed by the optional parameters, followed by `-EA Stop` (all errors are treated as terminating errors).
  * The downloaded install script does not have to be signed, but if it is, the signature must be valid.
  * If an error occurs in Interactive mode, the wrapper script pauses so you can read the error. If you enter `d` at the prompt, you'll enter a nested shell so you can poke around more (run `exit` to quit the nested shell).
- * `PowerShellStub.exe` returns the return code of the `powershell.exe` process. The exit code for an uncaught exception is `1`.
+ * `PowershellStub.exe` returns the return code of the `powershell.exe` process. The exit code for an uncaught exception is `1`.
 
 ## How'd you get it so small?
 
