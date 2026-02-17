@@ -253,7 +253,7 @@ int main() // no C runtime, so no args here
 #define EXPECT_MORE_CMDLINE \
     if( !*cursor ) \
     { \
-        Print( u8"Expected more on the command line." ); \
+        Print( u8"Expected more on the command line.\n" ); \
         ExitProcess( (UINT) -1 ); \
     } \
 
@@ -358,7 +358,7 @@ int main() // no C runtime, so no args here
     //
     // If an opening brace is surrounded by space, or a closing brace is preceded by a
     // space, that's the signal to the PrettyPrint function that we want the brace on its
-    // own line; else it's left alone (because it's a ScriptBlock)."
+    // own line; else it's left alone (because it's a ScriptBlock).
 
     // Setting $env:PSModulePath to null forces a (machine-) default PSModulePath, which
     // can be important to avoid "The PSModulePath Problem":

@@ -56,7 +56,7 @@ Shows that it would run the following "wrapper script" (pretty-printed; use `Wha
     try
     {
         $theScript = (iwr https://example.com/install-the-thing$env:_POWERSHELL_STUB_TEST_URL_SUFFIX -UseBasic -EA Stop).Content
-        $bytes = [System.Text.Encoding]::Unicode.GetBytes( $theScript )
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes( $theScript )
         $hash = ([Security.Cryptography.SHA256]::Create().ComputeHash( $bytes ) | %{$_.ToString('x2')}) -join ''
         $expectedHash = '37b91cb6eebc34c965ac3bbfc59a9ca64738054b7d31131e59698a86e38613d3'
         if( $hash -ne $expectedHash )
