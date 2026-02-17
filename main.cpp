@@ -86,7 +86,7 @@ HANDLE g_hStdOut = 0;
 
 void Print( const char8_t* s )
 {
-    WriteConsoleA( g_hStdOut, s, MyStrLen( s ), nullptr, nullptr );
+    WriteFile( g_hStdOut, s, MyStrLen( s ), nullptr, nullptr );
 }
 
 int MyStrCmpI( const char8_t* s1, const char8_t* s2 )
