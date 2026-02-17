@@ -39,7 +39,7 @@ Command line syntax:
 | `WhatIf` *or* `WhatIfRaw` | **(optional)** if specified, just prints the command line that would be used. |
 | *&lt;InstallMode&gt;* | One of `Interactive`, `Silent`, or `SilentWithProgress`. (Corresponds to winget install modes.) |
 | *&lt;ScriptURL&gt;* | URL from which to download the PowerShell script to run. |
-| *&lt;ExpectedScriptHash&gt;* | Expected SHA256 hash of the install script (encoded as UTF16), in hex. If the downloaded script does not match this hash, it will not be run. |
+| *&lt;ExpectedScriptHash&gt;* | Expected SHA256 hash of the install script (encoded as UTF8), in hex. If the downloaded script does not match this hash, it will not be run. |
 | *&lt;OptionalArgs&gt;* | **optional** additional arguments to pass along to the script. |
 
 `PowerShellStub.exe` is *extremely* simple--it only parses its arguments, then delegates all the "real work" (such as downloading the install script and verifying its hash) to `powershell.exe`, via a small "wrapper script" that is provided directly on the command line. You can use the `WhatIf` option to see what would be run.

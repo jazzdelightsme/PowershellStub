@@ -117,7 +117,7 @@ bool _HandleUsageRequest( const char8_t* installMode )
                u8"\n"
                u8"    ScriptURL: URL from which to download the PowerShell script to run.\n"
                u8"\n"
-               u8"    ExpectedScriptHash: SHA256 hash of the install script, in hex.\n"
+               u8"    ExpectedScriptHash: SHA256 hash of the install script (encoded as UTF8), in hex.\n"
                u8"\n"
                u8"    OptionalArgs: optional arguments to pass along to the script.\n"
                u8"\n"
